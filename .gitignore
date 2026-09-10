@@ -15,6 +15,7 @@ htmlcov/
 
 # Local verification tools and database artifacts
 .runtime/
+fastapi_app/memo/
 *.sqlite
 *.sqlite3
 *.db

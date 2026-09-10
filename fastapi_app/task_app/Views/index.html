@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="FastAPI と MySQL に接続する、学習用タスク管理 SPA"
+    />
+    <title>TaskFlow | タスク管理</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#task-list">タスク一覧へ移動</a>
+
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="./" aria-label="TaskFlow ホーム">
+          <span class="brand__mark" aria-hidden="true">✓</span>
+          <span>TaskFlow</span>
+        </a>
+        <p class="api-status">
+          <span class="api-status__dot" aria-hidden="true"></span>
+          API: localhost:8888
+        </p>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">MY TASKS</p>
+        <h1 id="page-title">今日やることを、すっきり整理。</h1>
+        <p>
+          タスクをカテゴリや担当者ごとに整理して、日々の進み具合を確認しましょう。
+        </p>
+      </section>
+
+      <!--
+        タスク追加エリア。
+        JavaScript がこのフォームの値を POST /tasks 用 JSON に変換します。
+        select の選択肢は GET /categories と GET /assignees の結果から作られます。
+      -->
+      <section class="panel create-panel" aria-labelledby="create-heading">
+        <div class="panel__heading">
+          <div>
+            <p class="section-kicker">NEW TASK</p>
+            <h2 id="create-heading">タスクを追加</h2>
+          </div>
+          <p class="required-note"><span aria-hidden="true">*</span> 必須項目</p>
+        </div>
+
+        <form id="task-create-form" class="task-form" novalidate>
+          <div class="field field--title">
+            <label for="task-title">タイトル <span aria-hidden="true">*</span></label>
+            <input
+              id="task-title"
+              name="title"
+              type="text"
+              maxlength="255"
+              autocomplete="off"
+              placeholder="例：会議資料をまとめる"
+              required
+            />
+          </div>
+
+          <div class="field field--description">
+            <label for="task-description">説明 <span class="optional">任意</span></label>
+            <textarea
+              id="task-description"
+              name="description"
+              rows="3"
+              maxlength="2000"
+              placeholder="期限や補足を書いておく"
+            ></textarea>
+          </div>
+
+          <div class="field">
+            <label for="task-category">カテゴリ</label>
+            <div class="select-with-action">
+              <select id="task-category" name="category_id">
+                <option value="">未設定</option>
+              </select>
+              <button
+                class="icon-button"
+                type="button"
+                data-open-category-dialog
+                data-target-select="task-category"
+                aria-label="カテゴリを追加"
+                title="カテゴリを追加"
+              >
+                <span aria-hidden="true">＋</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="task-assignee">担当者</label>
+            <div class="select-with-action">
+              <select id="task-assignee" name="assignee_id">
+                <option value="">未設定</option>
+              </select>
+              <button
+                class="icon-button"
+                type="button"
+                data-open-assignee-dialog
+                data-target-select="task-assignee"
+                aria-label="担当者を追加"
+                title="担当者を追加"
+              >
+                <span aria-hidden="true">＋</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-actions form-actions--create">
+            <button id="create-task-button" class="button button--primary" type="submit">
+              <span aria-hidden="true">＋</span>
+              タスクを追加
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!--
+        絞り込みを変えるたび、JavaScript は GET /tasks の query を作り直します。
+        例: GET /tasks?is_done=false&category_id=2
+      -->
+      <section class="panel list-panel" aria-labelledby="list-heading">
+        <div class="panel__heading panel__heading--list">
+          <div>
+            <p class="section-kicker">TASK LIST</p>
+            <h2 id="list-heading">タスク一覧</h2>
+          </div>
+          <button id="refresh-tasks" class="button button--quiet" type="button">
+            再読み込み
+          </button>
+        </div>
+
+        <div class="filters" aria-label="タスクの絞り込み">
+          <div class="status-tabs" role="group" aria-label="完了状態">
+            <button
+              class="status-tab is-active"
+              type="button"
+              aria-pressed="true"
+              data-status="all"
+            >
+              すべて
+            </button>
+            <button
+              class="status-tab"
+              type="button"
+              aria-pressed="false"
+              data-status="open"
+            >
+              未完了
+            </button>
+            <button
+              class="status-tab"
+              type="button"
+              aria-pressed="false"
+              data-status="done"
+            >
+              完了
+            </button>
+          </div>
+
+          <div class="filter-category">
+            <label for="filter-category">カテゴリ</label>
+            <select id="filter-category">
+              <option value="">すべてのカテゴリ</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+
+        <div class="list-summary">
+          <p id="task-count">0 件を表示</p>
+          <p id="active-filter-label">すべてのタスク</p>
+        </div>
+
+        <div id="loading-state" class="loading-state" role="status" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          API からタスクを取得しています…
+        </div>
+
+        <!-- Task カードは GET /tasks の JSON から JavaScript がここへ追加します。 -->
+        <ul id="task-list" class="task-list" aria-label="タスク" tabindex="-1"></ul>
+
+        <div id="empty-state" class="empty-state" hidden>
+          <span class="empty-state__icon" aria-hidden="true">✓</span>
+          <h3>条件に合うタスクはありません</h3>
+          <p>上のフォームから追加するか、絞り込み条件を変えてください。</p>
+        </div>
+      </section>
+    </main>
+
+    <!--
+      編集用モーダル。
+      開くときは GET /tasks/{task_id} で最新値を取得し、
+      保存時はフォーム全体を PUT /tasks/{task_id} へ送ります。
+    -->
+    <dialog id="edit-task-dialog" class="dialog dialog--wide" aria-labelledby="edit-dialog-title">
+      <div class="dialog__surface">
+        <div class="dialog__heading">
+          <div>
+            <p class="section-kicker">EDIT TASK</p>
+            <h2 id="edit-dialog-title">タスクを編集</h2>
+          </div>
+          <button
+            class="dialog__close"
+            type="button"
+            data-close-dialog="edit-task-dialog"
+            aria-label="編集を閉じる"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="task-edit-form" class="task-form task-form--dialog" novalidate>
+          <div class="feedback field--full" data-dialog-feedback role="alert" hidden></div>
+          <div class="field field--full">
+            <label for="edit-title">タイトル <span aria-hidden="true">*</span></label>
+            <input id="edit-title" type="text" maxlength="255" required />
+          </div>
+
+          <div class="field field--full">
+            <label for="edit-description">説明 <span class="optional">任意</span></label>
+            <textarea id="edit-description" rows="4" maxlength="2000"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="edit-category">カテゴリ</label>
+            <div class="select-with-action">
+              <select id="edit-category"><option value="">未設定</option></select>
+              <button
+                class="icon-button"
+                type="button"
+                data-open-category-dialog
+                data-target-select="edit-category"
+                aria-label="編集画面からカテゴリを追加"
+                title="カテゴリを追加"
+              >
+                <span aria-hidden="true">＋</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="edit-assignee">担当者</label>
+            <div class="select-with-action">
+              <select id="edit-assignee"><option value="">未設定</option></select>
+              <button
+                class="icon-button"
+                type="button"
+                data-open-assignee-dialog
+                data-target-select="edit-assignee"
+                aria-label="編集画面から担当者を追加"
+                title="担当者を追加"
+              >
+                <span aria-hidden="true">＋</span>
+              </button>
+            </div>
+          </div>
+
+          <label class="done-control field--full" for="edit-is-done">
+            <input id="edit-is-done" type="checkbox" />
+            <span>
+              <strong>完了済みにする</strong>
+              <small>チェックを外すと未完了に戻せます</small>
+            </span>
+          </label>
+
+          <div class="dialog__actions field--full">
+            <button
+              class="button button--secondary"
+              type="button"
+              data-close-dialog="edit-task-dialog"
+            >
+              キャンセル
+            </button>
+            <button id="save-task-button" class="button button--primary" type="submit">
+              変更を保存
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <!--
+      カテゴリ専用モーダル。
+      担当者モーダルとはフォームもイベントも分離し、POST /categories だけを呼びます。
+    -->
+    <dialog id="category-dialog" class="dialog" aria-labelledby="category-dialog-title">
+      <div class="dialog__surface">
+        <div class="dialog__heading">
+          <div>
+            <p class="section-kicker">NEW CATEGORY</p>
+            <h2 id="category-dialog-title">カテゴリを追加</h2>
+          </div>
+          <button
+            class="dialog__close"
+            type="button"
+            data-close-dialog="category-dialog"
+            aria-label="カテゴリ追加を閉じる"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="category-form" class="dialog-form" novalidate>
+          <div class="feedback" data-dialog-feedback role="alert" hidden></div>
+          <div class="field">
+            <label for="category-name">カテゴリ名 <span aria-hidden="true">*</span></label>
+            <input
+              id="category-name"
+              type="text"
+              maxlength="100"
+              autocomplete="off"
+              placeholder="例：仕事"
+              required
+            />
+          </div>
+          <div class="dialog__actions">
+            <button
+              class="button button--secondary"
+              type="button"
+              data-close-dialog="category-dialog"
+            >
+              キャンセル
+            </button>
+            <button id="create-category-button" class="button button--primary" type="submit">
+              追加
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <!--
+      担当者専用モーダル。
+      このフォームは POST /assignees だけを呼びます。
+    -->
+    <dialog id="assignee-dialog" class="dialog" aria-labelledby="assignee-dialog-title">
+      <div class="dialog__surface">
+        <div class="dialog__heading">
+          <div>
+            <p class="section-kicker">NEW ASSIGNEE</p>
+            <h2 id="assignee-dialog-title">担当者を追加</h2>
+          </div>
+          <button
+            class="dialog__close"
+            type="button"
+            data-close-dialog="assignee-dialog"
+            aria-label="担当者追加を閉じる"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="assignee-form" class="dialog-form" novalidate>
+          <div class="feedback" data-dialog-feedback role="alert" hidden></div>
+          <div class="field">
+            <label for="assignee-name">担当者名 <span aria-hidden="true">*</span></label>
+            <input
+              id="assignee-name"
+              type="text"
+              maxlength="100"
+              autocomplete="off"
+              placeholder="例：山田"
+              required
+            />
+          </div>
+          <div class="dialog__actions">
+            <button
+              class="button button--secondary"
+              type="button"
+              data-close-dialog="assignee-dialog"
+            >
+              キャンセル
+            </button>
+            <button id="create-assignee-button" class="button button--primary" type="submit">
+              追加
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <noscript>
+      <p class="noscript-message">この SPA を使うには JavaScript を有効にしてください。</p>
+    </noscript>
+
+    <!-- type="module" は自動的に defer と同様に HTML 解析後に実行されます。 -->
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
