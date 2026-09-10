@@ -1,0 +1,29 @@
+# Python / local environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Local settings; keep the setup example in Git
+.env
+.env.*
+!.env.example
+
+# Local verification tools and database artifacts
+.runtime/
+*.sqlite
+*.sqlite3
+*.db
+*.log
+MySQL-Sample/
+screenshots/tmp/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
