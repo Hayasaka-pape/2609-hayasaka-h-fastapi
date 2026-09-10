@@ -44,6 +44,8 @@ git clone git@github.com:Hayasaka-pape/2609-hayasaka-h-fastapi.git
 cd 2609-hayasaka-h-fastapi
 ```
 
+この機能PRのレビュー中は、続けて `git switch 'feature/#1'` を実行して実装ブランチへ移動してください。レビュー後に `main` へマージ済みなら、この切り替えは不要です。提出ZIPを展開した場合はクローンせず、展開したフォルダで以下の手順を実行します。
+
 レビュー中のコードを確認する場合は、提出 PR のブランチをチェックアウトしてください。ZIP から実行する場合は展開したフォルダが以降の「課題リポジトリ直下」です。
 
 ## 2. 指定の MySQL-Sample を起動する
