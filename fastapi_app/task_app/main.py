@@ -62,20 +62,6 @@ app = FastAPI(
     lifespan=lifespan,  # 関数自体を渡し、起動・終了時の実行をFastAPIに任せる。
 )
 
-
-@app.exception_handler(SQLAlchemyError)
-async def database_error_handler(request: Request, exc: SQLAlchemyError):
-    # SQLや接続情報はレスポンスに含めず、詳細はサーバーログへ記録する。
-    logging.getLogger(__name__).error(
-        "Database operation failed: %s %s", request.method, request.url.path,
-        exc_info=(type(exc), exc, exc.__traceback__),
-    )
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Database operation failed"},
-    )
-
-
 # リクエスト・レスポンスの処理に、CORS用のミドルウェアを追加する。
 # オリジンは「通信方式・ホスト名・ポート番号」の組み合わせを指す。
 # 例：http://localhost:3000とhttp://localhost:8000は異なるオリジンである。
