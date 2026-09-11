@@ -86,7 +86,8 @@ class Settings(BaseSettings):
 # 引数がないため、Settingsは最初の呼び出し時に一度だけ作成される。
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # 設定値は.envファイルまたは環境変数から読み込むため、ここでは引数を渡さない。
+    return Settings()  # type: ignore[call-arg]
 
 
 # .envから設定値を読み込み、Settingsオブジェクトを取得する。
